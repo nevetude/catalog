@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collection – Catalog</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/theme.js"></script>
+</head>
+<body>
+  <header class="header"></header>
+
+  <main class="main-container">
+    <div class="catalog-card">
+
+      <div class="catalog-header">
+        <h1 class="catalog-title"><span id="catalogLabel">Collection</span> <span id="totalCount" class="total-count"></span></h1>
+        <select class="sort-select" id="sortSelect"></select>
+      </div>
+      <div class="search-box"><input type="text" id="searchInput" placeholder="Search title" autocomplete="off"></div>
+      <div id="empty" class="empty" hidden>Nothing found</div>
+      <div class="media-grid" id="mediaGrid"></div>
+    </div>
+    <aside class="filters-card" id="filtersCard"></aside>
+  </main>
+
+  <script type="module" src="/static/js/pages/collection.js"></script>
+</body>
+</html>

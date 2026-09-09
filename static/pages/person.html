@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Person – Catalog</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/theme.js"></script>
+</head>
+<body>
+  <header class="header"></header>
+
+  <div id="detailLoading" class="loading">Loading…</div>
+  <div id="detailError" class="empty" hidden>Not found</div>
+  <main class="main-container" id="detailRoot" hidden>
+    <div class="catalog-card">
+      <div class="person-head" id="personHead"></div>
+      <div class="catalog-header">
+        <h1 class="catalog-title"><span>Filmography</span> <span id="totalCount" class="total-count"></span></h1>
+        <div class="person-selects">
+          <select class="filter-select" id="kindSelect"></select>
+          <select class="filter-select" id="roleSelect"></select>
+          <select class="sort-select" id="sortSelect"></select>
+        </div>
+      </div>
+      <div class="search-box"><input type="text" id="searchInput" placeholder="Search filmography" autocomplete="off"></div>
+      <div id="empty" class="empty" hidden>Nothing found</div>
+      <div class="media-grid" id="mediaGrid"></div>
+    </div>
+    <aside class="filters-card" id="filtersCard"></aside>
+  </main>
+
+  <script type="module" src="/static/js/pages/person.js"></script>
+</body>
+</html>
