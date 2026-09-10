@@ -237,17 +237,6 @@ export async function promptFolderName(title = "New folder") {
   return el.querySelector("#folderNameInput").value.trim() || null;
 }
 
-/* ------------------------------------------------------- person snippets */
-
-export const SILHOUETTE = `<svg viewBox="0 0 64 96" width="40" height="56" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="22" r="14" fill="currentColor" opacity=".35"/><path d="M8 90c0-16 10.7-28 24-28s24 12 24 28" fill="currentColor" opacity=".35"/></svg>`;
-
-export function personCard(p, sub) {
-  const photo = p.profile ? `<img src="${esc(p.profile)}" alt="" loading="lazy">` : SILHOUETTE;
-  return `<a class="person-sm" href="/person/${p.id}"><div class="person-sm-photo">${photo}</div>
-    <div class="person-sm-name" title="${esc(p.name)}">${esc(p.name || "")}</div>
-    ${sub ? `<div class="person-sm-sub" title="${esc(sub)}">${esc(sub)}</div>` : ""}</a>`;
-}
-
 export function chips(title, items) {
   if (!items?.length) return "";
   return `<div class="extra-block"><h3>${esc(title)}</h3><div class="chip-list">

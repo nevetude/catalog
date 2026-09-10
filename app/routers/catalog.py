@@ -1,13 +1,12 @@
-"""Catalog API: listings, filter values, media details, persons, companies, collections."""
+"""Catalog API: listings, filter values, media details, companies, collections."""
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.auth import current_user
-from app.config import PROFILE
 from app.db import get_db
 from app.iso import iso_maps
 from app.media import (
@@ -110,88 +109,6 @@ def collection_detail(
         "collection": {"id": collection_id, "name": head["collection_name"], "poster": None},
         "total": total,
         "items": list_items(spec, rows, _uid(request)),
-    }
-
-
-@router.get("/person/{person_id}")
-def person_detail(
-    person_id: int,
-    request: Request,
-    filters: MediaFilters = Depends(parse_media_filters),
-    media_kind: Optional[str] = Query(None, pattern="^(movie|tv|feature|short)$"),
-    role: Optional[str] = None,
-    sort: str = "year",
-    order: str = Query("desc", pattern="^(asc|desc)$"),
-    limit: int = Query(500, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
-):
-    with get_db() as conn:
-        person = conn.execute("SELECT * FROM people WHERE id = ?", (person_id,)).fetchone()
-        if not person:
-            raise HTTPException(404, "person not found")
-        credit_rows = conn.execute(
-            "SELECT media_type, media_id, job FROM credits WHERE person_id = ?",
-            (person_id,),
-        ).fetchall()
-
-    # Jobs per media record; credits store the media type in either case (legacy rows).
-    roles_by_media: dict[tuple[str, int], list[str]] = {}
-    for c in credit_rows:
-        mt = c["media_type"].strip().lower()
-        if mt in MEDIA:
-            roles_by_media.setdefault((mt, c["media_id"]), []).append(c["job"])
-
-    specs = list(MEDIA.values())
-    type_clause = ""
-    if media_kind in ("feature", "short"):
-        specs = [MEDIA["movie"]]
-        type_clause = "type != 'Short'" if media_kind == "feature" else "type = 'Short'"
-    elif media_kind in MEDIA:
-        specs = [MEDIA[media_kind]]
-
-    items: list[dict] = []
-    options: list[dict] = []
-    total = 0
-    user_id = _uid(request)
-    for spec in specs:
-        scope = [
-            f"EXISTS (SELECT 1 FROM credits pc WHERE pc.person_id = ? "
-            f"AND pc.media_id = {spec.table}.id AND LOWER(pc.media_type) = ?)"
-        ]
-        params: list[Any] = [person_id, spec.key]
-        if role:
-            scope.append(
-                f"EXISTS (SELECT 1 FROM credits rc WHERE rc.person_id = ? "
-                f"AND rc.media_id = {spec.table}.id AND rc.job = ?)"
-            )
-            params += [person_id, role]
-        if type_clause:
-            scope.append(type_clause)
-        t, rows = query_media(spec, filters, scope=(scope, params), sort=sort, order=order,
-                              limit=offset + limit)
-        total += t
-        items += list_items(spec, rows, user_id)
-        options.append(filter_options(spec, scope=(scope, params)))
-        for item, row in zip(items[-len(rows):], rows):
-            jobs = list(dict.fromkeys(roles_by_media.get((spec.key, row["id"]), [])))
-            item["role"] = ", ".join(jobs)
-            item["roles"] = jobs
-
-    items = sort_items(items, sort, order)[offset:offset + limit]
-    return {
-        "person": {
-            "id": person["id"],
-            "name": person["name"],
-            "profile": (PROFILE + person["profile_path"]) if person["profile_path"] else None,
-            "biography": person["biography"] or "",
-            "birthday": person["birthday"],
-            "place_of_birth": person["place_of_birth"],
-            "known_for_department": person["known_for_department"],
-        },
-        "roles": sorted({job for jobs in roles_by_media.values() for job in jobs}),
-        "filter_options": merge_options(options),
-        "total": total,
-        "items": items,
     }
 
 

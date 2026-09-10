@@ -2,7 +2,7 @@
 
 import {
   $, esc, renderHeader, fetchJson, formatDate, formatMoney, formatRuntime,
-  scoreColor, certClass, getIso, CERT_TIP, personCard, chips, companyChips,
+  scoreColor, certClass, getIso, CERT_TIP, chips, companyChips,
   openFolderPicker, flagIcon,
 } from "../core.js";
 
@@ -20,13 +20,6 @@ const isMovie = mediaType === "movie";
 
 let stills = [];
 let lbIndex = 0;
-
-function roleRow(label, people) {
-  if (!people?.length) return "";
-  return `<div class="side-row"><span class="side-label">${esc(label)}</span><span>${
-    people.map((d) => (d.id ? `<a href="/person/${d.id}">${esc(d.name)}</a>` : esc(d.name))).join(", ")
-  }</span></div>`;
-}
 
 function factRows(facts) {
   if (!facts.length) return "";
@@ -147,22 +140,7 @@ async function render(m) {
   const root = $("detailRoot");
   root.hidden = false;
 
-  const cr = m.credits || {};
-  const directors = cr.directors?.length ? cr.directors : (m.directors || []).map((name) => ({ name }));
-  const seenCrew = new Set();
-  const crewList = [];
-  for (const group of Object.values(cr)) {
-    for (const p of group || []) {
-      if (p?.id && seenCrew.has(p.id)) continue;
-      if (p?.id) seenCrew.add(p.id);
-      crewList.push(p);
-    }
-  }
   const side = [
-    roleRow(isMovie ? "Director" : "Creators", isMovie ? directors : (m.created_by || []).map((c) => ({ id: c.id, name: c.name }))),
-    roleRow("Writer", cr.writers),
-    roleRow("Screenplay", cr.screenplays),
-    roleRow("Story", cr.stories),
     `<div class="detail-add"><button type="button" id="btnAddLib">+ Add to library</button></div>`,
   ];
   const links = [
@@ -237,10 +215,6 @@ async function render(m) {
     ${chips("Languages", langs)}
     ${chips("Keywords", m.keywords || [])}
   </div></section>
-    ${cr.cast?.length ? `<section class="detail-block"><div class="block-inner"><h2 class="block-title">Cast</h2>
-      <div class="people-row">${cr.cast.map((p) => personCard(p, p.character)).join("")}</div></div></section>` : ""}
-    ${crewList.length ? `<section class="detail-block"><div class="block-inner"><h2 class="block-title">Crew</h2>
-      <div class="people-row">${crewList.map((p) => personCard(p, p.job)).join("")}</div></div></section>` : ""}
     <section class="detail-block" id="sectionCollection" hidden><div class="block-inner">
       <h2 class="block-title" id="collectionTitle">Collection</h2>
       <div class="collection-row" id="collectionRow"></div>

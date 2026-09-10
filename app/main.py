@@ -55,11 +55,6 @@ def library_page(folder_slug: str | None = None):
     return _page("library.html")
 
 
-@app.get("/person/{person_id}", include_in_schema=False)
-def person_page(person_id: int):
-    return _page("person.html")
-
-
 @app.get("/company/{company_id}", include_in_schema=False)
 def company_page(company_id: int):
     return _page("company.html")

@@ -16,7 +16,6 @@ from scripts.import_base import (
     main,
     named_list,
     save_backdrops,
-    save_credits,
     us_certification,
 )
 
@@ -29,7 +28,7 @@ class MovieImporter(BaseImporter):
     async def fetch(self, tmdb: TMDBClient, tmdb_id: int) -> dict | None:
         return await tmdb.get(f"/movie/{tmdb_id}", params={
             "language": "en-US",
-            "append_to_response": "release_dates,keywords,credits,images",
+            "append_to_response": "release_dates,keywords,images",
             "include_image_language": "en,null",
         })
 
@@ -81,7 +80,6 @@ class MovieImporter(BaseImporter):
             "keywords": jdump(kw_names),
         }
         upsert(conn, movie)
-        save_credits(conn, self.media_type, data["id"], data.get("credits") or {})
         backdrops = (data.get("images") or {}).get("backdrops")
         save_backdrops(conn, self.media_type, data["id"], backdrops)
 

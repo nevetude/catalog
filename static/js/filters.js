@@ -1,11 +1,11 @@
-/** Unified filter sidebar shared by every listing page (index, library, person, company, collection). */
+/** Unified filter sidebar shared by every listing page (index, library, company, collection). */
 
 import { $, esc, flagIcon, getIso } from "./core.js";
 
 /* --------------------------------------------------- predefined chip order */
 
 /** Checkbox lists in display order; values missing from the current dataset are hidden. */
-const TYPE_MOVIE = ["Movie", "Short", "TV Movie"];
+const TYPE_MOVIE = ["Movie", "Short", "TV Movie", "Collection", "First in collection"];
 const TYPE_TV = ["Scripted", "Reality", "Documentary", "News", "Talk", "Variety"];
 const GENRES_MOVIE = [
   "Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family",
@@ -32,11 +32,11 @@ const STATUS_MOVIE = [
   { value: "Rumored", label: "Rumored" },
   { value: "Canceled", label: "Canceled" },
 ];
-const CONTENT_FLAGS = [
+const CONTENT = [
   ["short", "Short"], ["anime", "Anime"], ["donghua", "Donghua"],
   ["aeni", "Aeni"], ["amerime", "Amerime"], ["tv_movie", "TV Movie"],
 ];
-const NSFW_FLAGS = [
+const NSFW = [
   ["adult", "Adult"], ["softcore", "Softcore"], ["gay", "Gay"], ["lesbian", "Lesbian"],
 ];
 
@@ -214,6 +214,12 @@ const FLAT_LIMIT = 12;
 let bounds = { year_min: 1900, year_max: 2030, runtime_min: 0, runtime_max: 300, budget_min: 0, budget_max: 500000000 };
 let checkboxState = {};
 let optionsCache = {};
+/** Tri-state chips: null (off) -> "yes" (checked) -> "no" (minus) -> null. */
+const TRI_STATE_PARAMS = {
+  Collection: "collection",
+  "First in collection": "first_in_collection",
+};
+let triState = { Collection: null, "First in collection": null };
 
 function paintDual(wrap, fromEl, toEl) {
   const min = Number(fromEl.min);
@@ -282,6 +288,15 @@ function renderChecks(container, values, labels, group, titles = {}, icons = fal
       <span>${esc(labels[value] ?? value)}</span>
     </label>`;
   }).join("");
+  if (group === "type") {
+    for (const value of Object.keys(TRI_STATE_PARAMS)) {
+      const chip = container.querySelector(`input[data-filter-value="${value}"]`);
+      if (chip) {
+        chip.checked = triState[value] === "yes";
+        chip.indeterminate = triState[value] === "no";
+      }
+    }
+  }
 }
 
 /** Content/NSFW chips: predefined order, only flags present in the dataset. */
@@ -520,10 +535,12 @@ export async function createFilters(container, {
     const orderFor = (movie, tv) =>
       t === "movie" ? movie : t === "tv" ? tv : [...movie, ...tv];
 
-    renderOrderedChips($("typeChips"), orderFor(TYPE_MOVIE, TYPE_TV), available("types"), "type");
+    // Collection is a pseudo-type (tri-state), shown regardless of the type values.
+    renderOrderedChips($("typeChips"), orderFor(TYPE_MOVIE, TYPE_TV),
+      new Set([...available("types"), "Collection"]), "type");
     renderOrderedChips($("genreChips"), orderFor(GENRES_MOVIE, GENRES_TV), available("genres"), "genre");
-    renderFlagChips($("contentChips"), CONTENT_FLAGS, data.flag_counts);
-    renderFlagChips($("nsfwChips"), NSFW_FLAGS, data.flag_counts);
+    renderFlagChips($("contentChips"), CONTENT, data.flag_counts);
+    renderFlagChips($("nsfwChips"), NSFW, data.flag_counts);
 
     const iso = await getIso();
     const countryNames = {};
@@ -595,6 +612,9 @@ export async function createFilters(container, {
 
   function readState() {
     for (const input of container.querySelectorAll("input[data-filter-group]")) {
+      // Tri-state chips (Collection, First in collection) keep their own
+      // state outside checkboxState.
+      if (input.dataset.filterValue in triState) continue;
       // Inputs hidden inside a collapsed accordion part must not erase
       // the state of their duplicates in the visible part (same value).
       const accBody = input.closest(".acc-body");
@@ -636,6 +656,11 @@ export async function createFilters(container, {
       const values = readChecks(group);
       if (values.length) p.set(key, values.join(","));
     }
+    if (currentType() !== "tv") {
+      for (const [value, param] of Object.entries(TRI_STATE_PARAMS)) {
+        if (triState[value]) p.set(param, triState[value]);
+      }
+    }
 
     const features = [...container.querySelectorAll("#contentChips input[data-feature]:checked")]
       .map((i) => i.dataset.feature);
@@ -655,6 +680,7 @@ export async function createFilters(container, {
       if ($(id)) $(id).value = "";
     }
     checkboxState = {};
+    triState = { Collection: null, "First in collection": null };
     if ($("minScoreR")) $("minScoreR").value = 0;
     if ($("maxScoreR")) $("maxScoreR").value = 10;
     paintDual($("scoreRange"), $("minScoreR"), $("maxScoreR"));
@@ -668,6 +694,13 @@ export async function createFilters(container, {
     autoTimer = setTimeout(onChange, 250);
   };
   container.addEventListener("change", (e) => {
+    // Tri-state chips (Collection, First in collection): click cycles checked -> minus -> off.
+    if (e.target.dataset.filterValue in triState) {
+      const value = e.target.dataset.filterValue;
+      triState[value] = triState[value] === null ? "yes" : triState[value] === "yes" ? "no" : null;
+      e.target.checked = triState[value] === "yes";
+      e.target.indeterminate = triState[value] === "no";
+    }
     if (e.target.matches("input[type=checkbox], input[type=number]")) autoApply();
   });
   container.addEventListener("input", (e) => {

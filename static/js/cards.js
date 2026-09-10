@@ -19,7 +19,6 @@ export function mediaCard(item, index) {
   const cert = item.certification ? `
     <span class="cert-badge ${certClass(item.certification)}"
           title="${esc(CERT_TIP[item.certification] || "")}">${esc(item.certification)}</span>` : "";
-  const directors = (item.directors || []).join(", ");
   const genres = (item.genres || []).slice(0, 4).join(", ");
   const titleTip = item.original_title && item.original_title !== item.title ? esc(item.original_title) : "";
   const metaLeft = [item.type || (item.media_type === "movie" ? "Movie" : "TV"), item.year]
@@ -39,7 +38,6 @@ export function mediaCard(item, index) {
   const poster = item.poster
     ? `<img src="${esc(item.poster)}" alt="" ${imgAttrs}>`
     : `<div class="poster-placeholder">${esc(item.title || "?")}</div>`;
-  const role = item.role ? `<div class="ov-dir">${esc(item.role)}</div>` : "";
 
   return `
     <div class="media-card">
@@ -49,8 +47,6 @@ export function mediaCard(item, index) {
           ${rating}
           ${cert}
           <div class="card-overlay">
-            ${role}
-            ${directors ? `<div class="ov-dir">${esc(directors)}</div>` : ""}
             ${genres ? `<div class="ov-genres">${esc(genres)}</div>` : ""}
           </div>
           ${flags ? `<div class="folder-flags">${flags}</div>` : ""}

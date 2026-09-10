@@ -2,7 +2,7 @@
 
 Subclasses define only what differs: the list file, detail endpoints and row
 mapping. Everything else — HTTP with retry/pacing, chunked fetching, savepoints,
-person/credit upserts, progress output — lives here.
+progress output — lives here.
 """
 
 from __future__ import annotations
@@ -32,7 +32,6 @@ REQUEST_INTERVAL = 0.1
 RETRY_COUNT = 4
 BATCH_SIZE = 100
 
-CAST_JOB = "Actor"
 
 
 def _keywords(data: dict) -> list[str]:
@@ -50,20 +49,36 @@ def _keywords(data: dict) -> list[str]:
 
 def flags(keywords: list[str]) -> dict[str, bool]:
     """Keyword-derived boolean flags shared by movies and shows."""
-    kws = [k.strip().lower() for k in keywords]
-    exact = set(kws)
-    aeni = "aeni" in exact or "korean animation" in exact
+
+    rules = {
+        "gay": (
+            "gay pornography",
+            "homosexual",
+            "male homosexuality",
+            "transsexual",
+            "tomboy",
+        ),
+        "lesbian": (
+            "lesbian",
+            "lesbianism",
+            "women love",
+        ),
+        "anime": (
+            "anime",
+            "hentai",
+        ),
+        "donghua": ("donghua",),
+        "aeni": ("aeni",),
+        "amerime": ("anime inspired",),
+    }
+
     return {
-        "softcore": "softcore" in exact,
-        "gay": any(t in k for k in kws for t in (
-            "gay pornography", "homosexual", "male homosexuality",
-            "transsexual", "tomboy")),
-        "lesbian": any(t in k for k in kws for t in (
-            "lesbian", "lesbianism", "women love")),
-        "anime": "anime" in exact and not aeni,
-        "donghua": "donghua" in exact,
-        "aeni": aeni,
-        "amerime": "anime inspired" in exact,
+        flag: any(
+            word in keyword
+            for keyword in keywords
+            for word in words
+        )
+        for flag, words in rules.items()
     }
 
 
@@ -81,48 +96,6 @@ def us_tv_certification(data: dict) -> str | None:
         if country.get("iso_3166_1") == "US" and (country.get("rating") or "").strip():
             return country["rating"].strip()
     return None
-
-
-def upsert_person(conn, person: dict) -> None:
-    if not person.get("id"):
-        return
-    conn.execute(
-        "INSERT INTO people (id, name, profile_path, biography, birthday, place_of_birth, "
-        "known_for_department, updated_at) VALUES (?,?,?,?,?,?,?,datetime('now')) "
-        "ON CONFLICT(id) DO UPDATE SET name = excluded.name, "
-        "profile_path = COALESCE(excluded.profile_path, people.profile_path), "
-        "biography = COALESCE(excluded.biography, people.biography), "
-        "birthday = COALESCE(excluded.birthday, people.birthday), "
-        "place_of_birth = COALESCE(excluded.place_of_birth, people.place_of_birth), "
-        "known_for_department = COALESCE(excluded.known_for_department, "
-        "people.known_for_department), "
-        "updated_at = datetime('now')",
-        (person.get("id"), person.get("name") or "", person.get("profile_path"),
-         person.get("biography"), person.get("birthday"), person.get("place_of_birth"),
-         person.get("known_for_department")),
-    )
-
-
-def save_credits(conn, media_type: str, media_id: int, credits: dict) -> None:
-    """Replace crew (filtered to known jobs) and ordered cast for one media record."""
-    conn.execute("DELETE FROM credits WHERE media_type = ? AND media_id = ?",
-                 (media_type, media_id))
-    from app.config import CREW_JOBS
-    rows: list[tuple] = []
-    for crew in credits.get("crew") or []:
-        job = (crew.get("job") or "").strip()
-        if job in CREW_JOBS and crew.get("id"):
-            upsert_person(conn, crew)
-            rows.append((media_type, media_id, crew["id"], job, None, 0))
-    for order, actor in enumerate(credits.get("cast") or []):
-        if actor.get("id"):
-            upsert_person(conn, actor)
-            rows.append((media_type, media_id, actor["id"], CAST_JOB,
-                         actor.get("character"), order))
-    conn.executemany(
-        "INSERT OR IGNORE INTO credits (media_type, media_id, person_id, job, character, ord) "
-        "VALUES (?, ?, ?, ?, ?, ?)", rows,
-    )
 
 
 def save_backdrops(conn, media_type: str, media_id: int, backdrops: list) -> None:
@@ -198,7 +171,7 @@ class TMDBClient:
 
 
 class BaseImporter(ABC):
-    media_type: str          # credit media type: "movie" or "tv"
+    media_type: str          # "movie" or "tv"
     list_file: str           # ndjson filename under data/lists/
     label: str               # progress label
 

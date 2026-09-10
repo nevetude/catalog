@@ -480,12 +480,6 @@ button:focus-visible {
   opacity: 1;
 }
 
-.ov-dir {
-  font-weight: 600;
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-
 .ov-genres {
   font-size: 11px;
   opacity: 0.85;
@@ -1136,6 +1130,26 @@ button:focus-visible {
   transform: rotate(45deg);
 }
 
+/* Tri-state Collection chip: minus marks "exclude" */
+.check-item input[type="checkbox"]:indeterminate {
+  background: var(--include-bg);
+  border-color: var(--include-bg);
+}
+
+.check-item input[type="checkbox"]:indeterminate::after {
+  content: "";
+
+  position: absolute;
+
+  left: 3px;
+  top: 5.5px;
+
+  width: 7px;
+  height: 2px;
+
+  background: var(--include-fg);
+}
+
 .check-item input[type="checkbox"]:focus-visible {
   outline: 1px solid var(--border);
   outline-offset: 2px;
@@ -1310,29 +1324,6 @@ button:focus-visible {
 
 .poster-side {
   margin-top: 12px;
-}
-
-.side-row {
-  font-size: 12px;
-
-  margin-bottom: 8px;
-
-  line-height: 1.35;
-}
-
-.side-label {
-  display: block;
-
-  font-size: 10px;
-
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-
-  color: var(--muted);
-
-  font-weight: 600;
-
-  margin-bottom: 2px;
 }
 
 .side-links {
@@ -1612,78 +1603,6 @@ button:focus-visible {
   font-size: 20px;
 
   cursor: pointer;
-}
-
-.people-row {
-  display: flex;
-
-  gap: 12px;
-
-  overflow-x: auto;
-
-  scroll-behavior: smooth;
-
-  padding-bottom: 6px;
-}
-
-.person-sm {
-  flex: 0 0 72px;
-
-  width: 72px;
-
-  text-align: center;
-}
-
-.person-sm-photo {
-
-  aspect-ratio: 2 / 3;
-
-  border-radius: 8px;
-
-  overflow: hidden;
-
-  border: 1px solid var(--border);
-
-  background: var(--bg);
-
-  margin-bottom: 4px;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  color: var(--muted);
-}
-
-.person-sm-photo img {
-  width: 100%;
-  height: 100%;
-
-  object-fit: cover;
-}
-
-.person-sm-name {
-  font-size: 11px;
-  font-weight: 600;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-.person-sm-sub {
-  font-size: 10px;
-
-  color: var(--muted);
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
 }.extra-block {
   margin-bottom: 14px;
 }
@@ -2390,39 +2309,12 @@ html, body, .header, .catalog-card, .filters-card, .media-card, .folder-pill,
   .media-title { font-size: 12px; }
   .media-meta { font-size: 9px; }
   .check-list.cols-2 { grid-template-columns: 1fr; }
-}/* ============================================================
-   v5 additions: shared header injection, person/company heads
-   ============================================================ */
-
-a.person-sm {
-  text-decoration: none;
-  color: inherit;
 }
 
 .auth-error {
   color: #c62828;
   font-size: 12px;
   margin-bottom: 10px;
-}
-
-.person-head {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  padding: 16px 0 4px;
-}
-
-.person-head .detail-poster {
-  width: 120px;
-  min-width: 120px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.person-selects {
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
 
 .company-head {

@@ -66,11 +66,11 @@ app/
   data/iso/         ISO-справочники стран и языков (json)
   routers/
     auth.py         /api/auth/*, /api/me
-    catalog.py      /api/catalog, /api/filters, детали, персоны, компании, коллекции
+    catalog.py      /api/catalog, /api/filters, детали, компании, коллекции
     library.py      /api/library/* — папки и элементы пользователя
 
 scripts/
-  import_base.py    каркас импорта: HTTP-клиент, retry, savepoints, upsert персон
+  import_base.py    каркас импорта: HTTP-клиент, retry, savepoints
   import_movies.py  фильмы
   import_shows.py   сериалы (+ эпизоды)
 

@@ -7,7 +7,7 @@ FastAPI + SQLite каталог фильмов/сериалов с импорт�
 - `app/media.py` — ядро: фильтры→SQL, карточки, детали, опции фильтров (`/api/filters`)
 - `app/db.py` — схема SQLite (создаётся с нуля, миграций нет), пул настроек PRAGMA
 - `app/auth.py` — pbkdf2, сессии; `app/iso.py` — ISO-словари из `app/data/iso/*.json`
-- `app/routers/` — auth, catalog (листинги/детали/персоны/компании), library
+- `app/routers/` — auth, catalog (листинги/детали/компании), library
 - `scripts/import_*.py` — импорт TMDB; `scripts/import_base.py` — каркас + retry
 - `static/js/filters.js` — вся логика фильтров (аккордеоны, порядки чекбоксов, auto-apply)
 - `static/js/pages/` — постраничные модули; `core.js` — общие утилиты

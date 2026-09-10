@@ -14,12 +14,9 @@ DB_PATH = Path(os.getenv("CATALOG_DB_PATH", ROOT / "data" / "catalog.db"))
 COOKIE = "catalog_session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 365
 DEFAULT_FOLDERS = ("Watchlist", "Watched")
-CREW_JOBS = ("Director", "Writer", "Screenplay", "Story", "Screenwriter", "Teleplay")
-CAST_LIMIT = 50
 
 TMDB_IMAGE = "https://image.tmdb.org/t/p"
 POSTER = f"{TMDB_IMAGE}/w500"
-PROFILE = f"{TMDB_IMAGE}/w185"
 BACKDROP = f"{TMDB_IMAGE}/w1280"
 BACKDROP_ORIG = f"{TMDB_IMAGE}/original"
 STILL = f"{TMDB_IMAGE}/w780"

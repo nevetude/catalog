@@ -1,10 +1,3 @@
-"""Unified media layer.
-
-One declarative filter model drives every listing (catalog, library folder,
-person filmography, company, collection) for both tables, so filter semantics
-exist exactly once — as SQL.
-"""
-
 from __future__ import annotations
 
 import json
@@ -17,10 +10,8 @@ from pydantic import BaseModel, Field, ValidationError
 from app.config import (
     BACKDROP,
     BACKDROP_ORIG,
-    CAST_LIMIT,
     CERT_ORDER,
     POSTER,
-    PROFILE,
     STILL,
     STILL_EP,
 )
@@ -28,14 +19,12 @@ from app.db import get_db
 
 CHUNK = 500  # keep IN(...) lists well below SQLite's variable limit
 
-_ROLE_KEYS = {
-    "Director": "directors",
-    "Writer": "writers",
-    "Screenplay": "screenplays",
-    "Story": "stories",
-    "Screenwriter": "screenwriters",
-    "Teleplay": "teleplays",
-}
+# Earliest-dated film of its collection; `> ''` keeps empty-string dates out of MIN().
+_FIRST_IN_COLLECTION = (
+    "release_date = (SELECT MIN(m2.release_date) FROM movies m2 "
+    "WHERE m2.belongs_to_collection = movies.belongs_to_collection "
+    "AND m2.release_date > '')"
+)
 
 
 @dataclass(frozen=True)
@@ -68,6 +57,8 @@ class MediaFilters(BaseModel):
     status: Optional[str] = None
     statuses_exclude: Optional[str] = None
     type: Optional[str] = None
+    collection: Optional[str] = None  # yes: in a collection, no: not in any
+    first_in_collection: Optional[str] = None  # yes: first film of it, no: later sequel
     genres: Optional[str] = None
     companies: Optional[str] = None
     networks: Optional[str] = None
@@ -170,6 +161,18 @@ def media_where(spec: MediaSpec, f: MediaFilters) -> tuple[list[str], list[Any]]
     for t in f.csv("type"):
         w.append("LOWER(type) = LOWER(?)")
         p.append(t)
+    # Tri-state Collection facet (movies only; the shows table has no collection column).
+    if spec.key == "movie":
+        for c in f.csv("collection"):
+            if c.lower() == "yes":
+                w.append("belongs_to_collection IS NOT NULL")
+            elif c.lower() == "no":
+                w.append("belongs_to_collection IS NULL")
+        for v in f.csv("first_in_collection"):
+            if v.lower() == "yes":
+                w.append(_FIRST_IN_COLLECTION)
+            elif v.lower() == "no":
+                w.append(f"belongs_to_collection IS NOT NULL AND NOT ({_FIRST_IN_COLLECTION})")
     for g in f.csv("genres"):
         w.append("genres LIKE ?")
         p.append(f'%"{g}"%')
@@ -308,7 +311,6 @@ def card(spec: MediaSpec, row) -> dict:
         "revenue": None,
         "episodes": None,
         "seasons": None,
-        "directors": [],
         "in_watchlist": False,
         "in_watched": False,
         "in_library": False,
@@ -321,70 +323,6 @@ def card(spec: MediaSpec, row) -> dict:
                     seasons=row["number_of_seasons"] or 0)
     return item
 
-
-def load_crew(spec: MediaSpec, media_id: int) -> dict[str, list[dict]]:
-    """Crew grouped by job; persons unique per role, insertion order kept."""
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT c.job, p.id AS person_id, p.name, p.profile_path "
-            "FROM credits c JOIN people p ON p.id = c.person_id "
-            "WHERE LOWER(c.media_type) = ? AND c.media_id = ? AND c.job != 'Actor' "
-            "ORDER BY c.id",
-            (spec.key, media_id),
-        ).fetchall()
-    crew: dict[str, list[dict]] = {key: [] for key in _ROLE_KEYS.values()}
-    seen: dict[str, set[int]] = {key: set() for key in _ROLE_KEYS.values()}
-    for r in rows:
-        key = _ROLE_KEYS.get(r["job"])
-        if key and r["person_id"] not in seen[key]:
-            seen[key].add(r["person_id"])
-            crew[key].append({
-                "id": r["person_id"],
-                "name": r["name"],
-                "job": r["job"],
-                "profile": PROFILE + r["profile_path"] if r["profile_path"] else None,
-            })
-    return crew
-
-
-def load_cast(spec: MediaSpec, media_id: int, limit: int = CAST_LIMIT) -> list[dict]:
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT p.id, p.name, c.character, p.profile_path FROM credits c "
-            "JOIN people p ON p.id = c.person_id "
-            "WHERE LOWER(c.media_type) = ? AND c.media_id = ? AND c.job = 'Actor' "
-            "ORDER BY c.ord, c.id LIMIT ?",
-            (spec.key, media_id, limit),
-        ).fetchall()
-    return [
-        {
-            "id": r["id"],
-            "name": r["name"],
-            "character": r["character"] or "",
-            "profile": PROFILE + r["profile_path"] if r["profile_path"] else None,
-        }
-        for r in rows
-    ]
-
-
-def load_directors_bulk(spec: MediaSpec, media_ids: list[int]) -> dict[int, list[str]]:
-    """Directors for many records in chunked queries (one round-trip per chunk)."""
-    result = {mid: [] for mid in media_ids}
-    if not media_ids:
-        return result
-    with get_db() as conn:
-        for start in range(0, len(media_ids), CHUNK):
-            chunk = media_ids[start:start + CHUNK]
-            rows = conn.execute(
-                f"SELECT c.media_id, p.name FROM credits c "
-                f"JOIN people p ON p.id = c.person_id "
-                f"WHERE LOWER(c.media_type) = ? AND c.job = 'Director' "
-                f"AND c.media_id IN ({','.join('?' * len(chunk))}) ORDER BY c.media_id, c.id",
-                (spec.key, *chunk),
-            ).fetchall()
-            for r in rows:
-                result[r["media_id"]].append(r["name"])
-    return result
 
 
 def attach_library_flags(items: list[dict], user_id: Optional[int]) -> None:
@@ -415,13 +353,8 @@ def attach_library_flags(items: list[dict], user_id: Optional[int]) -> None:
 
 
 def list_items(spec: MediaSpec, rows: list, user_id: Optional[int]) -> list[dict]:
-    """Cards with directors and library flags — shared by every listing endpoint."""
-    directors = load_directors_bulk(spec, [r["id"] for r in rows])
-    items = []
-    for r in rows:
-        item = card(spec, r)
-        item["directors"] = directors[r["id"]]
-        items.append(item)
+    """Cards with library flags — shared by every listing endpoint."""
+    items = [card(spec, r) for r in rows]
     attach_library_flags(items, user_id)
     return items
 
@@ -469,16 +402,12 @@ def detail(spec: MediaSpec, row) -> dict:
     data = card(spec, row)
     if row["poster_path"]:
         data["poster"] = POSTER + row["poster_path"]
-    crew = load_crew(spec, row["id"])
     data.update(
         backdrop=BACKDROP + row["backdrop_path"] if row["backdrop_path"] else None,
         homepage=row["homepage"],
         overview=row["overview"] or "",
         tagline=row["tagline"] or "",
         keywords=jload(row["keywords"]),
-        credits=crew,
-        cast=load_cast(spec, row["id"]),
-        directors=[p["name"] for p in crew["directors"]],
         production_companies=jload(row["production_companies"]),
         production_countries=jload(row["production_countries"]),
         spoken_languages=jload(row["spoken_languages"]),
@@ -499,7 +428,6 @@ def detail(spec: MediaSpec, row) -> dict:
             last_air_date=row["last_air_date"],
             in_production=bool(row["in_production"]),
             networks=jload(row["networks"]),
-            created_by=jload(row["created_by"]),
             episode_run_time=jload(row["episode_run_time"]),
             seasons_meta=jload(row["seasons"]),
             seasons_data=_season_data(row["id"]),

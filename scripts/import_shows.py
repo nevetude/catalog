@@ -17,7 +17,6 @@ from scripts.import_base import (  # noqa: E402
     main,
     named_list,
     save_backdrops,
-    save_credits,
     us_tv_certification,
 )
 
@@ -30,7 +29,7 @@ class ShowImporter(BaseImporter):
     async def fetch(self, tmdb: TMDBClient, tmdb_id: int) -> dict | None:
         detail = await tmdb.get(f"/tv/{tmdb_id}", params={
             "language": "en-US",
-            "append_to_response": "content_ratings,keywords,credits,images",
+            "append_to_response": "content_ratings,keywords,images",
             "include_image_language": "en,null",
         })
         if detail is None:
@@ -78,8 +77,6 @@ class ShowImporter(BaseImporter):
             "vote_average": data.get("vote_average") or 0,
             "vote_count": data.get("vote_count") or 0,
             "homepage": data.get("homepage"),
-            "created_by": jdump(named_list(data.get("created_by") or [],
-                                           "id", "name", "profile_path")),
             "networks": jdump(named_list(data.get("networks") or [], "id", "name", "logo_path")),
             "production_countries": jdump(named_list(data.get("production_countries") or [],
                                                      "iso_3166_1", "name")),
@@ -95,7 +92,6 @@ class ShowImporter(BaseImporter):
             "keywords": jdump(kw_names),
         }
         upsert(conn, show)
-        save_credits(conn, self.media_type, data["id"], data.get("credits") or {})
         save_backdrops(conn, self.media_type, data["id"], images.get("backdrops"))
         save_episodes(conn, data["id"], data["_episodes"])
 

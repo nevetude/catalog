@@ -101,10 +101,6 @@ const SORT_VARIANTS = {
     ["vote_count", "Votes"], ["vote_average", "Rating"], ["popularity", "Popularity"],
     ["name", "Alphabetically"], ["year", "By date"],
   ],
-  person: [
-    ["year", "By date"], ["vote_average", "Rating"], ["vote_count", "Votes"],
-    ["popularity", "Popularity"], ["name", "Alphabetically"],
-  ],
 };
 
 /** Fill a sort <select> with one of the SORT_VARIANTS option sets. */

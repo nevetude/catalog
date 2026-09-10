@@ -8,17 +8,6 @@ from contextlib import contextmanager
 from app.config import DB_PATH, DEFAULT_FOLDERS, SESSION_MAX_AGE
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS people (
-    id                   INTEGER PRIMARY KEY,
-    name                 TEXT NOT NULL,
-    profile_path         TEXT,
-    biography            TEXT,
-    birthday             TEXT,
-    place_of_birth       TEXT,
-    known_for_department TEXT,
-    updated_at           TEXT
-);
-
 CREATE TABLE IF NOT EXISTS movies (
     id                    INTEGER PRIMARY KEY,
     type                  TEXT DEFAULT 'Movie',
@@ -90,7 +79,6 @@ CREATE TABLE IF NOT EXISTS shows (
     vote_average         REAL,
     vote_count           INTEGER,
     homepage             TEXT,
-    created_by           TEXT,
     networks             TEXT,
     production_countries TEXT,
     production_companies TEXT,
@@ -101,18 +89,6 @@ CREATE TABLE IF NOT EXISTS shows (
     seasons              TEXT,
     keywords             TEXT,
     updated_at           TEXT
-);
-
-CREATE TABLE IF NOT EXISTS credits (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    media_type TEXT NOT NULL,
-    media_id   INTEGER NOT NULL,
-    person_id  INTEGER NOT NULL,
-    job        TEXT NOT NULL,
-    character  TEXT,
-    ord        INTEGER DEFAULT 0,
-    FOREIGN KEY (person_id) REFERENCES people(id),
-    UNIQUE (media_type, media_id, person_id, job)
 );
 
 CREATE TABLE IF NOT EXISTS episodes (
@@ -179,9 +155,6 @@ INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_movies_votes ON movies(vote_count DESC);
 CREATE INDEX IF NOT EXISTS idx_shows_votes ON shows(vote_count DESC);
 CREATE INDEX IF NOT EXISTS idx_movies_type ON movies(type);
-CREATE INDEX IF NOT EXISTS idx_credits_person ON credits(person_id);
-CREATE INDEX IF NOT EXISTS idx_credits_media ON credits(media_type, media_id);
-CREATE INDEX IF NOT EXISTS idx_credits_cast ON credits(media_type, media_id, ord);
 CREATE INDEX IF NOT EXISTS idx_lib_items ON library_items(folder_id);
 CREATE INDEX IF NOT EXISTS idx_lib_items_media ON library_items(media_type, media_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_movies_release_date ON movies(release_date);
@@ -234,13 +207,15 @@ def ensure_folders(conn: sqlite3.Connection, user_id: int) -> None:
 
 
 def init_db() -> None:
-    """Create the schema, drop the removed translations table, bootstrap the admin."""
+    """Create the schema, drop removed tables, bootstrap the admin."""
     from app.auth import hash_password  # imported here to avoid a circular import
 
     with get_db() as conn:
         conn.executescript(SCHEMA)
         conn.executescript(INDEXES)
         conn.execute("DROP TABLE IF EXISTS translations")
+        conn.execute("DROP TABLE IF EXISTS credits")
+        conn.execute("DROP TABLE IF EXISTS people")
         conn.execute(
             "DELETE FROM sessions WHERE created_at < datetime('now', ?)",
             (f"-{SESSION_MAX_AGE} seconds",),
